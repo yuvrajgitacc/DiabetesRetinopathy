@@ -29,6 +29,7 @@ def _load_pytorch_model():
     global _pytorch_model, _active_model_type
 
     if _pytorch_model is not None:
+        _active_model_type = 'pytorch'
         return _pytorch_model
 
     if not os.path.exists(PYTORCH_MODEL_PATH):
@@ -79,6 +80,7 @@ def _load_tf_model():
     global _tf_model, _active_model_type
 
     if _tf_model is not None:
+        _active_model_type = 'tensorflow'
         return _tf_model
 
     if not os.path.exists(DR_MODEL_PATH):

@@ -488,22 +488,37 @@ def translate_report(report, language="hindi"):
     if language == "english":
         return report
 
-    try:
-        prompt = """Translate the following medical report to {language}. 
-Keep all medical terms in English but translate the explanations.
-Keep the JSON structure exactly the same -- only translate the string values.
-Output ONLY valid JSON, no other text.
+    lang_names = {"hindi": "Hindi (Devanagari script)", "gujarati": "Gujarati (Gujarati script)"}
+    lang_display = lang_names.get(language, language)
 
-{report}""".format(language=language, report=json.dumps(report, indent=2))
+    try:
+        report_json = json.dumps(report, indent=2, ensure_ascii=False)
+
+        system = """You are a medical report translator. You receive a JSON medical report and translate ALL string values to the requested language. Keep JSON keys in English. Keep medical terms like DR, NPDR, HbA1c, mg/dL in English. Output ONLY the translated JSON object."""
+
+        prompt = """Translate all string values in this JSON to {language}. Output the complete translated JSON:
+
+{report}""".format(language=lang_display, report=report_json)
 
         raw_text = _call_gemma_api(
             prompt=prompt,
-            temperature=0.2,
-            max_tokens=2500,
+            system_instruction=system,
+            temperature=0.1,
+            max_tokens=3000,
         )
 
-        return _parse_response(raw_text)
+        translated = _parse_response(raw_text)
+
+        # If parse succeeded and has content, return it
+        if translated and not translated.get('error'):
+            return translated
+
+        # Fallback: return original with a note
+        print("[WARNING] Translation parse failed, returning original")
+        return report
 
     except Exception as e:
         print("[WARNING] Translation failed: {}".format(e))
         return report
+
+
