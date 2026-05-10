@@ -1,5 +1,6 @@
 import torch
-from engine.detector import _load_pytorch_model, _preprocess_for_effnet
+from engine.detector import _load_pytorch_model
+from engine.preprocessor import preprocess_for_display
 from pathlib import Path
 from PIL import Image
 import numpy as np
@@ -29,8 +30,11 @@ for stage in range(5):
     images = list(class_dir.glob("*.png"))[:50] # Test 50 images per stage
     
     for img_path in images:
-        img = np.array(Image.open(img_path).convert("RGB"))
-        preprocessed = _preprocess_for_effnet(img)
+        # Use the exact same preprocessing pipeline as the application
+        preprocessed_data = preprocess_for_display(str(img_path))
+        preprocessed = preprocessed_data["model_input_enhanced_highres"]
+        
+        # Preprocessed is already (H, W, C) float array in [0, 1]
         tensor = torch.from_numpy(preprocessed).permute(2, 0, 1).unsqueeze(0).float()
         
         # ImageNet normalization

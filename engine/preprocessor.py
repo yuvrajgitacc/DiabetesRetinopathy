@@ -118,10 +118,14 @@ def preprocess_for_display(image_path):
     # Raw model input (clean, no enhancement, for EfficientNet-B3)
     # Pass high-res (512x512) and let the engine downscale as needed
     model_input_raw = original.astype(np.float32) / 255.0
+    
+    # Enhanced high-res model input for retrained EfficientNet-B3
+    model_input_enhanced_highres = enhanced_full.astype(np.float32) / 255.0
 
     return {
         "model_input": model_input,          # Enhanced (for TF CNN / Grad-CAM)
         "model_input_raw": model_input_raw,   # Clean (for EfficientNet-B3)
+        "model_input_enhanced_highres": model_input_enhanced_highres,
         "original": original,
         "enhanced": enhanced_display,
     }

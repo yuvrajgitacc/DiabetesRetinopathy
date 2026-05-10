@@ -204,6 +204,7 @@ def analyze():
         processed = preprocess_for_display(filepath)
         model_input = processed["model_input"]
         model_input_raw = processed["model_input_raw"]
+        model_input_enhanced_highres = processed["model_input_enhanced_highres"]
         original = processed["original"]
 
         # Save original resized for display
@@ -211,7 +212,7 @@ def analyze():
         cv2.imwrite(original_path, original)
 
         # --- 3. Run Detection --- (UNCHANGED)
-        detection_result = predict(model_input_raw)
+        detection_result = predict(model_input_enhanced_highres)
 
         # --- 4. Generate Heatmap --- (UNCHANGED)
         heatmap_path = os.path.join(RESULTS_DIR, f"{analysis_id}_heatmap.png")

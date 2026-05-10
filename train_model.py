@@ -36,6 +36,12 @@ from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 import torchvision.transforms as T
 import torchvision.models as models
 from PIL import Image
+import cv2
+
+# Import preprocessor functions
+import sys
+sys.path.append(str(Path(__file__).parent))
+from engine.preprocessor import circular_crop, apply_gaussian_blur
 
 # ── Config ──────────────────────────────────────────────────────────────
 BASE_DIR = Path(__file__).parent
@@ -82,7 +88,16 @@ class DRDataset(Dataset):
         return len(self.image_paths)
 
     def __getitem__(self, idx):
-        img = Image.open(self.image_paths[idx]).convert("RGB")
+        path = self.image_paths[idx]
+        img = cv2.imread(path)
+        if img is not None:
+            img = circular_crop(img)
+            img = apply_gaussian_blur(img)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            img = Image.fromarray(img)
+        else:
+            img = Image.open(path).convert("RGB")
+            
         label = self.labels[idx]
         if self.transform:
             img = self.transform(img)
@@ -471,6 +486,24 @@ def train_phase(model, train_loader, val_loader, criterion, optimizer, scheduler
 
 # ── Main ────────────────────────────────────────────────────────────────
 
+class FocalLoss(nn.Module):
+    def __init__(self, weight=None, gamma=2.0, reduction='mean'):
+        super(FocalLoss, self).__init__()
+        self.weight = weight
+        self.gamma = gamma
+        self.reduction = reduction
+
+    def forward(self, inputs, targets):
+        ce_loss = nn.functional.cross_entropy(inputs, targets, weight=self.weight, reduction='none')
+        pt = torch.exp(-ce_loss)
+        focal_loss = ((1 - pt) ** self.gamma) * ce_loss
+        
+        if self.reduction == 'mean':
+            return focal_loss.mean()
+        elif self.reduction == 'sum':
+            return focal_loss.sum()
+        return focal_loss
+
 def main():
     seed_everything()
 
@@ -551,7 +584,7 @@ def main():
     model = model.to(device)
 
     class_weights = get_class_weights(train_labels).to(device)
-    criterion = nn.CrossEntropyLoss(weight=class_weights, label_smoothing=0.1)
+    criterion = FocalLoss(weight=class_weights, gamma=2.0)
     scaler = torch.amp.GradScaler('cuda') if device.type == 'cuda' else None
     save_path = MODELS_DIR / "best_dr_model.pt"
 
