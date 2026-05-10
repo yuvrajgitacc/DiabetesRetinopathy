@@ -16,6 +16,7 @@ env/
 
 # === Large Model Files (too big for GitHub) ===
 models/*.h5
+models/*.pt
 models/vessel_model/*.pt
 models/vessel_model/*.pth
 
@@ -37,6 +38,7 @@ data/heimed/*.jpg
 data/heimed/*.meta
 data/heimed/*.GND
 data/heimed/validation_report.json
+data/aptos/
 
 # === IDE / Editor ===
 .vscode/

@@ -45,21 +45,37 @@ def _load_pytorch_model():
         # Create EfficientNet-B3 architecture with custom classifier
         model = models.efficientnet_b3(weights=None)
 
-        # Replace classifier to match 5 DR classes
-        num_features = model.classifier[1].in_features  # 1536
-        model.classifier = torch.nn.Linear(num_features, 5)
-
-        # Load state dict (keys have 'model.' prefix)
-        state_dict = torch.load(PYTORCH_MODEL_PATH, map_location='cpu', weights_only=False)
+        # Load state dict (keys may have 'model.' prefix)
+        raw_state = torch.load(PYTORCH_MODEL_PATH, map_location='cpu', weights_only=False)
+        
+        # Handle checkpoint wrapper (from train_model.py)
+        if 'model_state_dict' in raw_state:
+            raw_state = raw_state['model_state_dict']
 
         # Remove 'model.' prefix from keys
         new_state_dict = {}
-        for key, value in state_dict.items():
-            if key.startswith('model.'):
-                new_key = key[6:]  # Remove 'model.' prefix
-            else:
-                new_key = key
+        for key, value in raw_state.items():
+            new_key = key[6:] if key.startswith('model.') else key
             new_state_dict[new_key] = value
+
+        # Auto-detect classifier architecture from checkpoint keys
+        has_enhanced_head = any('classifier.3' in k for k in new_state_dict)
+        
+        num_features = model.classifier[1].in_features  # 1536
+        if has_enhanced_head:
+            # Enhanced head from train_model.py
+            model.classifier = torch.nn.Sequential(
+                torch.nn.Dropout(p=0.4),
+                torch.nn.Linear(num_features, 512),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.BatchNorm1d(512),
+                torch.nn.Dropout(p=0.3),
+                torch.nn.Linear(512, 5),
+            )
+            print("[MODEL] Detected enhanced classifier head (retrained model)")
+        else:
+            # Original single-layer classifier
+            model.classifier = torch.nn.Linear(num_features, 5)
 
         model.load_state_dict(new_state_dict, strict=True)
         model.eval()
